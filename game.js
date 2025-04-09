@@ -32,6 +32,55 @@ window.addEventListener('load', () => {
     console.log(`Arena dimensions: ${arenaWidth}x${arenaHeight} at (${arenaX},${arenaY})`);
 
     // --- Game State (placeholders) ---
+
+// Added in Step 5: Player Representation
+class Player {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.width = 15;     // For collision or reference, not direct drawing size
+        this.height = 15;   // For collision or reference, not direct drawing size
+        this.color = '#33ff33';
+        this.strokeColor = '#33ff33';
+        this.lineWidth = 1.5;
+        this.speed = 200; // Pixels per second
+        this.lives = 3;
+        // Add velocity components if needed for physics-based movement later
+        // this.velocityX = 0;
+        // this.velocityY = 0;
+    }
+
+    // Draw the player triangle centered around this.x, this.y
+    draw(ctx) {
+        // Points relative to this.x, this.y (tip points up)
+        const topX = this.x;
+        const topY = this.y - this.height / 2;
+        const leftX = this.x - this.width / 2;
+        const leftY = this.y + this.height / 2;
+        const rightX = this.x + this.width / 2;
+        const rightY = this.y + this.height / 2;
+
+        ctx.beginPath();
+        ctx.moveTo(topX, topY);
+        ctx.lineTo(leftX, leftY);
+        ctx.lineTo(rightX, rightY);
+        ctx.closePath();
+
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.strokeStyle = this.strokeColor;
+        ctx.lineWidth = this.lineWidth;
+        ctx.stroke();
+    }
+
+    // update(deltaTime) method will be added in Step 6
+}
+
+// Instantiate the player - placed after Game Config, before Game Loop
+// Position near bottom-center based on canvas size
+const player = new Player(canvasWidth / 2, canvasHeight - 50);
+console.log("Player instance created:", player);
+
     // (Variables for player, enemies, score, lives etc. will go here later)
     let lastTime = 0;
 
@@ -52,6 +101,7 @@ window.addEventListener('load', () => {
 
         // 3. --- Draw Logic ---
         // (Draw player, enemies, projectiles, UI elements, etc.)
+        player.draw(ctx); // Added in Step 5
 
         // Draw the Arena Boundaries (as per Step 4 spec)
         ctx.strokeStyle = '#00ffff';
