@@ -7,7 +7,7 @@ window.addEventListener('load', () => {
     const canvas = document.getElementById('gameCanvas');
     if (!canvas) {
         console.error("Fatal Error: Canvas element with ID 'gameCanvas' not found!");
-        return; // Stop execution if canvas isn't found
+        return;
     }
     console.log("Canvas element obtained:", canvas);
 
@@ -15,37 +15,36 @@ window.addEventListener('load', () => {
     if (!ctx) {
         console.error("Fatal Error: Unable to get 2D rendering context!");
         alert("Your browser does not support the HTML5 Canvas element. Please update or use a different browser.");
-        return; // Stop execution if context isn't supported
+        return;
     }
     console.log("2D context obtained:", ctx);
 
     // --- Game Configuration ---
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
-    const arenaPadding = 10; // Padding from canvas edge for arena border
+    const arenaPadding = 10;
     const arenaX = arenaPadding;
     const arenaY = arenaPadding;
     const arenaWidth = canvasWidth - 2 * arenaPadding;
     const arenaHeight = canvasHeight - 2 * arenaPadding;
-    const projectileSpeed = 400; // Moved config together
-    const enemySpeed = 100; // Moved config together
+    const projectileSpeed = 400;
+    const enemySpeed = 100;
 
     console.log(`Canvas dimensions: ${canvasWidth}x${canvasHeight}`);
     console.log(`Arena dimensions: ${arenaWidth}x${arenaHeight} at (${arenaX},${arenaY})`);
 
     // --- Class Definitions ---
 
-    // Added in Step 5: Player Representation
     class Player {
         constructor(x, y) {
             this.x = x;
             this.y = y;
-            this.width = 15;     // For collision or reference
-            this.height = 15;   // For collision or reference
+            this.width = 15;
+            this.height = 15;
             this.color = '#33ff33';
             this.strokeColor = '#33ff33';
             this.lineWidth = 1.5;
-            this.speed = 200; // Pixels per second
+            this.speed = 200;
             this.lives = 3;
         }
 
@@ -62,7 +61,6 @@ window.addEventListener('load', () => {
             ctx.lineTo(leftX, leftY);
             ctx.lineTo(rightX, rightY);
             ctx.closePath();
-
             ctx.fillStyle = this.color;
             ctx.fill();
             ctx.strokeStyle = this.strokeColor;
@@ -72,13 +70,11 @@ window.addEventListener('load', () => {
 
         update(deltaTime, arenaX, arenaY, arenaWidth, arenaHeight) {
             const moveAmount = this.speed * deltaTime;
-
             if (keysPressed['w'] || keysPressed['arrowup']) { this.y -= moveAmount; }
             if (keysPressed['s'] || keysPressed['arrowdown']) { this.y += moveAmount; }
             if (keysPressed['a'] || keysPressed['arrowleft']) { this.x -= moveAmount; }
             if (keysPressed['d'] || keysPressed['arrowright']) { this.x += moveAmount; }
 
-            // Boundary Checks
             const halfWidth = this.width / 2;
             const halfHeight = this.height / 2;
             const leftBound = arenaX + halfWidth;
@@ -93,7 +89,6 @@ window.addEventListener('load', () => {
         }
     }
 
-    // Added in Step 7: Projectile Representation
     class Projectile {
         constructor(x, y, velocityX, velocityY) {
             this.x = x;
@@ -118,58 +113,51 @@ window.addEventListener('load', () => {
 
         isOffScreen(canvasWidth, canvasHeight) {
             return this.x < -this.radius || this.x > canvasWidth + this.radius ||
-                   this.y < -this.radius || this.y > canvasHeight + this.radius; // Allow slightly offscreen before removal
+                   this.y < -this.radius || this.y > canvasHeight + this.radius;
         }
     }
 
-    // Added in Step 8: Basic Enemy Representation (Corrected definition)
     class Enemy {
         constructor(x, y, type = 'square') {
             this.x = x;
             this.y = y;
-            this.type = type; // For future expansion
-            // Properties specific to type
-            this.width = 30; // Example size for square
-            this.height = 30; // Example size for square
-            this.color = '#ff00ff'; // Magenta for square
-            this.speed = enemySpeed; // Use configured speed
-            this.health = 1; // Simple enemy, 1 hit
+            this.type = type;
+            this.width = 30;
+            this.height = 30;
+            this.color = '#ff00ff';
+            this.speed = enemySpeed;
+            this.health = 1;
         }
 
         update(deltaTime) {
-            // Basic movement (e.g., move downwards)
             this.y += this.speed * deltaTime;
-            // Add boundary checks/wrapping later (e.g., reset to top if off bottom)
-             if (this.y - this.height / 2 > canvasHeight) {
-                 this.y = -this.height / 2; // Reset position to top
-                 this.x = Math.random() * arenaWidth + arenaX; // Randomize X position on wrap
-             }
+            if (this.y - this.height / 2 > canvasHeight) {
+                this.y = -this.height / 2;
+                this.x = Math.random() * arenaWidth + arenaX;
+            }
         }
 
         draw(ctx) {
-            // Draw based on type
             if (this.type === 'square') {
                 const halfSize = this.width / 2;
                 ctx.strokeStyle = this.color;
                 ctx.lineWidth = 2;
                 ctx.strokeRect(this.x - halfSize, this.y - halfSize, this.width, this.height);
             }
-            // Add drawing for other types later
         }
     }
 
     // --- Game State Initialization ---
     let lastTime = 0;
     let mousePos = { x: 0, y: 0 };
-    const keysPressed = {}; // Moved listener setup lower
-
+    const keysPressed = {};
     const player = new Player(canvasWidth / 2, canvasHeight - 50);
     const playerProjectiles = [];
     const enemies = [];
 
     console.log("Player instance created:", player);
 
-    // Spawn initial enemies for testing
+    // Spawn initial enemies
     enemies.push(new Enemy(150, 100));
     enemies.push(new Enemy(650, 150));
     console.log(`Spawned ${enemies.length} initial enemies.`);
@@ -181,6 +169,34 @@ window.addEventListener('load', () => {
             x: event.clientX - rect.left,
             y: event.clientY - rect.top
         };
+    }
+
+    // Added in Step 9: Collision Detection Utilities (CORRECTED)
+    function rectRectCollision(rect1, rect2) {
+        const rect1Left = rect1.x - rect1.width / 2;
+        const rect1Right = rect1.x + rect1.width / 2;
+        const rect1Top = rect1.y - rect1.height / 2;
+        const rect1Bottom = rect1.y + rect1.height / 2;
+        const rect2Left = rect2.x - rect2.width / 2;
+        const rect2Right = rect2.x + rect2.width / 2;
+        const rect2Top = rect2.y - rect2.height / 2;
+        const rect2Bottom = rect2.y + rect2.height / 2;
+        return rect1Left < rect2Right && rect1Right > rect2Left && rect1Top < rect2Bottom && rect1Bottom > rect2Top;
+    }
+
+    function circleRectCollision(circle, rect) {
+        const rectHalfWidth = rect.width / 2;
+        const rectHalfHeight = rect.height / 2;
+        const rectLeft = rect.x - rectHalfWidth;
+        const rectRight = rect.x + rectHalfWidth;
+        const rectTop = rect.y - rectHalfHeight;
+        const rectBottom = rect.y + rectHalfHeight;
+        const closestX = Math.max(rectLeft, Math.min(circle.x, rectRight));
+        const closestY = Math.max(rectTop, Math.min(circle.y, rectBottom));
+        const distanceX = circle.x - closestX;
+        const distanceY = circle.y - closestY;
+        const distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
+        return distanceSquared < (circle.radius * circle.radius);
     }
 
     // --- Main Game Loop ---
@@ -195,6 +211,7 @@ window.addEventListener('load', () => {
 
         // 2. Update Logic
         player.update(deltaTime, arenaX, arenaY, arenaWidth, arenaHeight);
+        enemies.forEach(enemy => enemy.update(deltaTime));
 
         // Update Projectiles & Remove Off-screen ones
         for (let i = playerProjectiles.length - 1; i >= 0; i--) {
@@ -205,17 +222,42 @@ window.addEventListener('load', () => {
             }
         }
 
-        // Update Enemies (Corrected placement)
-        enemies.forEach(enemy => enemy.update(deltaTime));
-        // Add boundary checks/removal for enemies later is now inside Enemy.update
+        // --- Collision Detection ---
+        // Projectile vs Enemy
+        for (let i = playerProjectiles.length - 1; i >= 0; i--) {
+            const projectile = playerProjectiles[i];
+            let projectileHit = false;
+            for (let j = enemies.length - 1; j >= 0; j--) {
+                const enemy = enemies[j];
+                if (circleRectCollision(projectile, enemy)) {
+                    console.log("Collision: Projectile hit Enemy");
+                    enemies.splice(j, 1); // Remove enemy
+                    projectileHit = true;
+                    // Add score / effects later
+                    break; // Projectile hits one enemy
+                }
+            }
+            if (projectileHit) {
+                playerProjectiles.splice(i, 1); // Remove projectile
+            }
+        }
 
-        // --- Collision Detection (Placeholder for Step 9) ---
-        // checkCollisions();
+        // Enemy vs Player
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            const enemy = enemies[i];
+            if (rectRectCollision(player, enemy)) { // Using Rect-Rect for player
+                console.log("Collision: Enemy hit Player!");
+                enemies.splice(i, 1); // Remove enemy
+                player.lives--;
+                console.log(`Player lives remaining: ${player.lives}`);
+                // Add player hit effects / game over check later
+            }
+        }
 
         // 3. Draw Logic
         player.draw(ctx);
         playerProjectiles.forEach(p => p.draw(ctx));
-        enemies.forEach(enemy => enemy.draw(ctx)); // Draw enemies
+        enemies.forEach(enemy => enemy.draw(ctx));
 
         // Draw Arena Boundaries
         ctx.strokeStyle = '#00ffff';
@@ -229,24 +271,14 @@ window.addEventListener('load', () => {
         requestAnimationFrame(gameLoop);
     }
 
-    // --- Event Listeners Setup --- (Corrected placement, no nesting)
+    // --- Event Listeners Setup ---
     console.log("Setting up event listeners...");
 
-    // Keyboard Listeners
-    window.addEventListener('keydown', (event) => {
-        keysPressed[event.key.toLowerCase()] = true;
-        // Optional: event.preventDefault(); for specific keys
-    });
-    window.addEventListener('keyup', (event) => {
-        keysPressed[event.key.toLowerCase()] = false;
-    });
-
-    // Mouse Listeners (Attached to CANVAS)
-    canvas.addEventListener('mousemove', (event) => {
-        mousePos = getMousePos(canvas, event);
-    });
+    window.addEventListener('keydown', (event) => { keysPressed[event.key.toLowerCase()] = true; });
+    window.addEventListener('keyup', (event) => { keysPressed[event.key.toLowerCase()] = false; });
+    canvas.addEventListener('mousemove', (event) => { mousePos = getMousePos(canvas, event); });
     canvas.addEventListener('mousedown', (event) => {
-        if (event.button === 0) { // Left mouse button
+        if (event.button === 0) { // Left click
             const dx = mousePos.x - player.x;
             const dy = mousePos.y - player.y;
             const angle = Math.atan2(dy, dx);
