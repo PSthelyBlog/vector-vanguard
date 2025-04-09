@@ -33,92 +33,133 @@ window.addEventListener('load', () => {
 
     // --- Game State (placeholders) ---
 
-// Added in Step 5: Player Representation
-class Player {
-    constructor(x, y) {
-        this.x = x;
-        this.y = y;
-        this.width = 15;     // For collision or reference, not direct drawing size
-        this.height = 15;   // For collision or reference, not direct drawing size
-        this.color = '#33ff33';
-        this.strokeColor = '#33ff33';
-        this.lineWidth = 1.5;
-        this.speed = 200; // Pixels per second
-        this.lives = 3;
-        // Add velocity components if needed for physics-based movement later
-        // this.velocityX = 0;
-        // this.velocityY = 0;
+    // Added in Step 5: Player Representation
+    class Player {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+            this.width = 15;     // For collision or reference, not direct drawing size
+            this.height = 15;   // For collision or reference, not direct drawing size
+            this.color = '#33ff33';
+            this.strokeColor = '#33ff33';
+            this.lineWidth = 1.5;
+            this.speed = 200; // Pixels per second
+            this.lives = 3;
+            // Add velocity components if needed for physics-based movement later
+            // this.velocityX = 0;
+            // this.velocityY = 0;
+        }
+
+        // Draw the player triangle centered around this.x, this.y
+        draw(ctx) {
+            // Points relative to this.x, this.y (tip points up)
+            const topX = this.x;
+            const topY = this.y - this.height / 2;
+            const leftX = this.x - this.width / 2;
+            const leftY = this.y + this.height / 2;
+            const rightX = this.x + this.width / 2;
+            const rightY = this.y + this.height / 2;
+
+            ctx.beginPath();
+            ctx.moveTo(topX, topY);
+            ctx.lineTo(leftX, leftY);
+            ctx.lineTo(rightX, rightY);
+            ctx.closePath();
+
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            ctx.strokeStyle = this.strokeColor;
+            ctx.lineWidth = this.lineWidth;
+            ctx.stroke();
+        }
+
+        // Added in Step 6: Player Update Logic
+        update(deltaTime, arenaX, arenaY, arenaWidth, arenaHeight) {
+            const moveAmount = this.speed * deltaTime;
+
+            // Movement based on keys pressed
+            if (keysPressed['w'] || keysPressed['arrowup']) {
+                this.y -= moveAmount;
+            }
+            if (keysPressed['s'] || keysPressed['arrowdown']) {
+                this.y += moveAmount;
+            }
+            if (keysPressed['a'] || keysPressed['arrowleft']) {
+                this.x -= moveAmount;
+            }
+            if (keysPressed['d'] || keysPressed['arrowright']) {
+                this.x += moveAmount;
+            }
+
+            // Boundary Checks (keep player within the arena)
+            // Calculate player boundaries (using center + half width/height)
+            const halfWidth = this.width / 2;
+            const halfHeight = this.height / 2;
+            const leftBound = arenaX + halfWidth;
+            const rightBound = arenaX + arenaWidth - halfWidth;
+            const topBound = arenaY + halfHeight;
+            const bottomBound = arenaY + arenaHeight - halfHeight;
+
+            if (this.x < leftBound) {
+                this.x = leftBound;
+            }
+            if (this.x > rightBound) {
+                this.x = rightBound;
+            }
+            if (this.y < topBound) {
+                this.y = topBound;
+            }
+            if (this.y > bottomBound) {
+                this.y = bottomBound;
+            }
+        }
     }
 
-    // Draw the player triangle centered around this.x, this.y
-    draw(ctx) {
-        // Points relative to this.x, this.y (tip points up)
-        const topX = this.x;
-        const topY = this.y - this.height / 2;
-        const leftX = this.x - this.width / 2;
-        const leftY = this.y + this.height / 2;
-        const rightX = this.x + this.width / 2;
-        const rightY = this.y + this.height / 2;
+    // Instantiate the player - placed after Game Config, before Game Loop
+    // Position near bottom-center based on canvas size
+    const player = new Player(canvasWidth / 2, canvasHeight - 50);
+    const playerProjectiles = []; // Added in Step 7
 
-        ctx.beginPath();
-        ctx.moveTo(topX, topY);
-        ctx.lineTo(leftX, leftY);
-        ctx.lineTo(rightX, rightY);
-        ctx.closePath();
-
-        ctx.fillStyle = this.color;
-        ctx.fill();
-        ctx.strokeStyle = this.strokeColor;
-        ctx.lineWidth = this.lineWidth;
-        ctx.stroke();
+    // Added in Step 7: Mouse Position Helper
+    function getMousePos(canvas, event) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top
+        };
     }
+    let mousePos = { x: 0, y: 0 }; // Store current mouse position relative to canvas
+    const projectileSpeed = 400; // Added in Step 7
 
-    // Added in Step 6: Player Update Logic
-    update(deltaTime, arenaX, arenaY, arenaWidth, arenaHeight) {
-        const moveAmount = this.speed * deltaTime;
-
-        // Movement based on keys pressed
-        if (keysPressed['w'] || keysPressed['arrowup']) {
-            this.y -= moveAmount;
-        }
-        if (keysPressed['s'] || keysPressed['arrowdown']) {
-            this.y += moveAmount;
-        }
-        if (keysPressed['a'] || keysPressed['arrowleft']) {
-            this.x -= moveAmount;
-        }
-        if (keysPressed['d'] || keysPressed['arrowright']) {
-            this.x += moveAmount;
+    // Added in Step 7: Projectile Representation
+    class Projectile {
+        constructor(x, y, velocityX, velocityY) {
+            this.x = x;
+            this.y = y;
+            this.velocityX = velocityX;
+            this.velocityY = velocityY;
+            this.radius = 3;
+            this.color = '#33ff33';
         }
 
-        // Boundary Checks (keep player within the arena)
-        // Calculate player boundaries (using center + half width/height)
-        const halfWidth = this.width / 2;
-        const halfHeight = this.height / 2;
-        const leftBound = arenaX + halfWidth;
-        const rightBound = arenaX + arenaWidth - halfWidth;
-        const topBound = arenaY + halfHeight;
-        const bottomBound = arenaY + arenaHeight - halfHeight;
+        update(deltaTime) {
+            this.x += this.velocityX * deltaTime;
+            this.y += this.velocityY * deltaTime;
+        }
 
-        if (this.x < leftBound) {
-            this.x = leftBound;
+        draw(ctx) {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = this.color;
+            ctx.fill();
         }
-        if (this.x > rightBound) {
-            this.x = rightBound;
-        }
-        if (this.y < topBound) {
-            this.y = topBound;
-        }
-        if (this.y > bottomBound) {
-            this.y = bottomBound;
+
+        // Helper to check if projectile is off-screen
+        isOffScreen(canvasWidth, canvasHeight) {
+            return this.x < 0 || this.x > canvasWidth || this.y < 0 || this.y > canvasHeight;
         }
     }
-}
-
-// Instantiate the player - placed after Game Config, before Game Loop
-// Position near bottom-center based on canvas size
-const player = new Player(canvasWidth / 2, canvasHeight - 50);
-console.log("Player instance created:", player);
+    console.log("Player instance created:", player);
 
     // (Variables for player, enemies, score, lives etc. will go here later)
     let lastTime = 0;
@@ -136,12 +177,26 @@ console.log("Player instance created:", player);
 
         // 2. --- Update Logic ---
         player.update(deltaTime, arenaX, arenaY, arenaWidth, arenaHeight); // Added in Step 6
+        // Added in Step 7: Update Projectiles & Remove Off-screen ones
+        // Iterate backwards when removing elements during iteration
+        for (let i = playerProjectiles.length - 1; i >= 0; i--) {
+            const p = playerProjectiles[i];
+            p.update(deltaTime);
+
+            if (p.isOffScreen(canvasWidth, canvasHeight)) {
+                playerProjectiles.splice(i, 1); // Remove projectile
+                // console.log(`Removed projectile: ${playerProjectiles.length} remaining`); // Optional debug log
+            }
+        }
+        // Collision detection (projectile vs enemy) will go here later
         // (Update player position, enemy positions, check collisions, etc. based on deltaTime)
         // Placeholder for future steps
 
         // 3. --- Draw Logic ---
         // (Draw player, enemies, projectiles, UI elements, etc.)
         player.draw(ctx); // Added in Step 5
+        // Added in Step 7: Draw Projectiles
+        playerProjectiles.forEach(p => p.draw(ctx));
 
         // Draw the Arena Boundaries (as per Step 4 spec)
         ctx.strokeStyle = '#00ffff';
@@ -169,6 +224,30 @@ console.log("Player instance created:", player);
     });
 
     window.addEventListener('keyup', (event) => {
+
+        // Added in Step 7: Mouse Input Handling (Shooting)
+        canvas.addEventListener('mousemove', (event) => {
+            mousePos = getMousePos(canvas, event);
+            // Optional: Draw aiming reticle or line here if desired
+        });
+
+        canvas.addEventListener('mousedown', (event) => {
+            if (event.button === 0) { // Check for left mouse button
+                // Calculate direction vector from player center to mouse position
+                const dx = mousePos.x - player.x;
+                const dy = mousePos.y - player.y;
+                const angle = Math.atan2(dy, dx);
+
+                // Calculate velocity components
+                const velocityX = Math.cos(angle) * projectileSpeed;
+                const velocityY = Math.sin(angle) * projectileSpeed;
+
+                // Create and add new projectile
+                // Offset start position slightly to appear from ship's 'tip' or 'sides' if desired
+                playerProjectiles.push(new Projectile(player.x, player.y, velocityX, velocityY));
+                // console.log(`Fired projectile: ${playerProjectiles.length} total`); // Optional debug log
+            }
+        });
         keysPressed[event.key.toLowerCase()] = false;
     });
 
