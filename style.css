@@ -1,0 +1,25 @@
+/* Basic Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Body Styling */
+body {
+    background-color: #050010;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh; /* Use min-height for flexibility */
+    overflow: hidden; /* Prevent scrollbars if canvas is slightly too large */
+    font-family: 'Courier New', Courier, monospace; /* Match SVG font style */
+}
+
+/* Canvas Styling */
+canvas {
+    /* The border helps visualize the canvas area during development */
+    border: 1px solid #00ffff;
+    /* Ensure canvas behaves like a block element */
+    display: block;
+}
