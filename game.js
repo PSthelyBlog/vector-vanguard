@@ -73,7 +73,46 @@ class Player {
         ctx.stroke();
     }
 
-    // update(deltaTime) method will be added in Step 6
+    // Added in Step 6: Player Update Logic
+    update(deltaTime, arenaX, arenaY, arenaWidth, arenaHeight) {
+        const moveAmount = this.speed * deltaTime;
+
+        // Movement based on keys pressed
+        if (keysPressed['w'] || keysPressed['arrowup']) {
+            this.y -= moveAmount;
+        }
+        if (keysPressed['s'] || keysPressed['arrowdown']) {
+            this.y += moveAmount;
+        }
+        if (keysPressed['a'] || keysPressed['arrowleft']) {
+            this.x -= moveAmount;
+        }
+        if (keysPressed['d'] || keysPressed['arrowright']) {
+            this.x += moveAmount;
+        }
+
+        // Boundary Checks (keep player within the arena)
+        // Calculate player boundaries (using center + half width/height)
+        const halfWidth = this.width / 2;
+        const halfHeight = this.height / 2;
+        const leftBound = arenaX + halfWidth;
+        const rightBound = arenaX + arenaWidth - halfWidth;
+        const topBound = arenaY + halfHeight;
+        const bottomBound = arenaY + arenaHeight - halfHeight;
+
+        if (this.x < leftBound) {
+            this.x = leftBound;
+        }
+        if (this.x > rightBound) {
+            this.x = rightBound;
+        }
+        if (this.y < topBound) {
+            this.y = topBound;
+        }
+        if (this.y > bottomBound) {
+            this.y = bottomBound;
+        }
+    }
 }
 
 // Instantiate the player - placed after Game Config, before Game Loop
@@ -96,6 +135,7 @@ console.log("Player instance created:", player);
         ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
         // 2. --- Update Logic ---
+        player.update(deltaTime, arenaX, arenaY, arenaWidth, arenaHeight); // Added in Step 6
         // (Update player position, enemy positions, check collisions, etc. based on deltaTime)
         // Placeholder for future steps
 
@@ -116,6 +156,22 @@ console.log("Player instance created:", player);
 
     // --- Start the Game ---
     console.log("Starting game loop...");
+
+    // Added in Step 6: Input Handling
+    const keysPressed = {};
+
+    window.addEventListener('keydown', (event) => {
+        keysPressed[event.key.toLowerCase()] = true;
+        // Optional: Prevent default browser behavior for arrow keys/space etc. if needed
+        // if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(event.key.toLowerCase())) {
+        //     event.preventDefault();
+        // }
+    });
+
+    window.addEventListener('keyup', (event) => {
+        keysPressed[event.key.toLowerCase()] = false;
+    });
+
     // Initialize lastTime for the first frame's deltaTime calculation
     lastTime = performance.now();
     // Start the loop
