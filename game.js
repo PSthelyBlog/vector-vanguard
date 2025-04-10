@@ -154,6 +154,7 @@ window.addEventListener('load', () => {
     const player = new Player(canvasWidth / 2, canvasHeight - 50);
     const playerProjectiles = [];
     const enemies = [];
+    let score = 0; // Added in Step 10
 
     console.log("Player instance created:", player);
 
@@ -199,6 +200,46 @@ window.addEventListener('load', () => {
         return distanceSquared < (circle.radius * circle.radius);
     }
 
+    // Added in Step 10: UI Drawing Function
+    function drawUI(ctx) {
+        // Draw Score
+        ctx.font = "20px 'Courier New', Courier, monospace";
+        ctx.fillStyle = "#ffffff";
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top'; // Align text nicely with coordinates
+        ctx.fillText(`SCORE: ${score}`, 25, 40);
+
+        // Draw Lives Text
+        ctx.textAlign = 'right'; // Align lives text to the right edge coordinate
+        ctx.fillText('LIVES:', 670, 40);
+
+        // Draw Life Icons (Triangles)
+        ctx.fillStyle = '#33ff33';
+        ctx.strokeStyle = '#33ff33';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < player.lives; i++) {
+            // Calculate position for each life icon triangle
+            const iconXOffset = 670 + 10 + (i * 20); // Start slightly right of text
+            // Using fixed points relative to iconXOffset (adjust if needed)
+            const topX = iconXOffset;
+            const topY = 40 - 5; // Align vertically with text baseline approx
+            const leftX = iconXOffset - 5;
+            const leftY = topY + 10;
+            const rightX = iconXOffset + 5;
+            const rightY = topY + 10;
+
+            ctx.beginPath();
+            ctx.moveTo(topX, topY);
+            ctx.lineTo(leftX, leftY);
+            ctx.lineTo(rightX, rightY);
+            ctx.closePath();
+            ctx.fill();
+            // ctx.stroke(); // Optional stroke for icons
+        }
+        // Reset alignment for other potential drawing
+        ctx.textAlign = 'left';
+    }
+
     // --- Main Game Loop ---
     function gameLoop(timestamp) {
         // Calculate delta time
@@ -232,6 +273,7 @@ window.addEventListener('load', () => {
                 if (circleRectCollision(projectile, enemy)) {
                     console.log("Collision: Projectile hit Enemy");
                     enemies.splice(j, 1); // Remove enemy
+                    score += 100; // Added in Step 10
                     projectileHit = true;
                     // Add score / effects later
                     break; // Projectile hits one enemy
@@ -263,9 +305,8 @@ window.addEventListener('load', () => {
         ctx.strokeStyle = '#00ffff';
         ctx.lineWidth = 2;
         ctx.strokeRect(arenaX, arenaY, arenaWidth, arenaHeight);
-
-        // --- Draw UI (Placeholder for Step 10) ---
-        // drawUI();
+        // Added in Step 10: Draw UI
+        drawUI(ctx);
 
         // 4. Request Next Frame
         requestAnimationFrame(gameLoop);
