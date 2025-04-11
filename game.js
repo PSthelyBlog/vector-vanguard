@@ -29,8 +29,10 @@ window.addEventListener('load', () => {
     const uiFont = "20px 'Courier New', Courier, monospace"; const uiColor = "#ffffff"; const scoreX = 25; const scoreY = 40;
     const highScoreY = scoreY + 25; const livesX = 670; const livesY = 40; const lifeIconSpacing = 20; const lifeIconColor = "#33ff33";
     const gameOverFontLarge = "48px 'Courier New', Courier, monospace"; const gameOverFontMedium = "24px 'Courier New', Courier, monospace"; const gameOverColor = "#ff3333";
+    const menuTitleFont = "52px 'Courier New', Courier, monospace"; const menuTextFont = "22px 'Courier New', Courier, monospace";
+    const menuPromptFont = "26px 'Courier New', Courier, monospace";
 
-    // Step 15: High Score Storage Key
+    // High Score Storage Key
     const HIGH_SCORE_KEY = 'vectorVanguardHighScore';
 
     // Wave Configuration
@@ -55,54 +57,28 @@ window.addEventListener('load', () => {
         update(deltaTime){this.x+=this.vx*deltaTime;this.y+=this.vy*deltaTime;const cY=this.shape==='circle'?this.y-this.radius:this.y-this.height/2;const cXL=this.shape==='circle'?this.x-this.radius:this.x-this.width/2;const cXR=this.shape==='circle'?this.x+this.radius:this.x+this.width/2;if(cY>canvasHeight){this.y=this.shape==='circle'?-this.radius:-this.height/2;this.x=Math.random()*arenaWidth+arenaX;}if(cXR<0){this.x=canvasWidth+(this.shape==='circle'?this.radius:this.width/2);}else if(cXL>canvasWidth){this.x=-(this.shape==='circle'?this.radius:this.width/2);}}
         draw(ctx){ctx.strokeStyle=this.color;ctx.lineWidth=2;if(this.shape==='rect'){const hS=this.width/2;ctx.strokeRect(this.x-hS,this.y-hS,this.width,this.height);}else if(this.shape==='circle'){ctx.beginPath();ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);ctx.stroke();}}
     }
-
-    // Added Step 16: Particle Class
-    class Particle {
-        constructor(x, y, vx, vy, life, color, size) {
-            this.x = x;
-            this.y = y;
-            this.vx = vx;
-            this.vy = vy;
-            this.life = life; // Lifespan in seconds
-            this.initialLife = life; // Store initial life for fading
-            this.color = color;
-            this.size = size;
-        }
-
-        update(deltaTime) {
-            this.x += this.vx * deltaTime;
-            this.y += this.vy * deltaTime;
-            this.life -= deltaTime;
-            // Optional: Add simple gravity or friction
-            // this.vy += 50 * deltaTime; // Gravity example
-            // this.vx *= 0.99; this.vy *= 0.99; // Friction example
-        }
-
-        draw(ctx) {
-            if (this.life <= 0) return;
-            // Fade out effect
-            const alpha = Math.max(0, this.life / this.initialLife);
-            ctx.globalAlpha = alpha; // Set opacity
-            ctx.fillStyle = this.color;
-            // Draw a simple square particle
-            ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
-            ctx.globalAlpha = 1.0; // Reset opacity for other drawing
-        }
+    class Particle { /* ... Particle class remains the same ... */
+        constructor(x,y,vx,vy,life,color,size){this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.life=life;this.initialLife=life;this.color=color;this.size=size;}
+        update(deltaTime){this.x+=this.vx*deltaTime;this.y+=this.vy*deltaTime;this.life-=deltaTime;}
+        draw(ctx){if(this.life<=0)return;const alpha=Math.max(0,this.life/this.initialLife);ctx.globalAlpha=alpha;ctx.fillStyle=this.color;ctx.fillRect(this.x-this.size/2,this.y-this.size/2,this.size,this.size);ctx.globalAlpha=1.0;}
     }
 
-    // --- Game State Definition ---
-    const GameState = { PLAYING: 'playing', GAME_OVER: 'gameOver' };
+    // --- Game State Definition (Updated Step 17) ---
+    const GameState = {
+        MENU: 'menu', // Added menu state
+        PLAYING: 'playing',
+        GAME_OVER: 'gameOver'
+    };
 
     // --- Game State Initialization ---
     let lastTime = 0; let mousePos = { x: 0, y: 0 }; const keysPressed = {};
-    let score = 0; let currentState = GameState.PLAYING; let currentWave = 1; let highScore = 0;
-    const player = new Player(canvasWidth / 2, canvasHeight - 50);
-    const playerProjectiles = []; const enemies = [];
-    const particles = []; // Added Step 16: Particle array
-    let shakeDuration = 0; // Added Step 16: Screen shake timer
-    let shakeIntensity = 0; // Added Step 16: Screen shake magnitude
+    let score = 0; let highScore = 0; let currentWave = 1; // Wave starts at 1 but isn't active until game starts
+    let currentState = GameState.MENU; // Start in MENU state (Step 17)
 
-    console.log("Player instance created:", player);
+    const player = new Player(canvasWidth / 2, canvasHeight - 50); // Create player once
+    const playerProjectiles = []; const enemies = []; const particles = [];
+    let shakeDuration = 0; let shakeIntensity = 0;
+    console.log("Player instance created (initially inactive):", player);
 
     // --- Helper Functions ---
     function getMousePos(canvas, event) { /* ... */ const r=canvas.getBoundingClientRect(); return {x:event.clientX-r.left, y:event.clientY-r.top}; }
@@ -117,160 +93,151 @@ window.addEventListener('load', () => {
     function startWave(waveNumber) { /* ... remains the same ... */ console.log(`Starting Wave ${waveNumber}`);currentWave=waveNumber;const config=waveConfigs.find(w=>w.wave===waveNumber);if(!config){console.log("All waves completed!");return;}config.enemies.forEach(group=>{const type=group.type;for(let i=0;i<group.count;i++){const sX=Math.random()*arenaWidth+arenaX;const sY=-50;enemies.push(new Enemy(sX,sY,type));}});console.log(`Spawned enemies for wave ${currentWave}. Total: ${enemies.length}`);}
     function loadHighScore() { /* ... remains the same ... */ try{const sS=localStorage.getItem(HIGH_SCORE_KEY);if(sS!==null){highScore=parseInt(sS,10)||0;console.log(`Loaded high score: ${highScore}`);}else{console.log("No high score found.");highScore=0;}}catch(e){console.error("LS load fail:",e);highScore=0;} }
     function checkAndSaveHighScore() { /* ... remains the same ... */ if(score>highScore){highScore=score;console.log(`New high score! Saving ${highScore}.`);try{localStorage.setItem(HIGH_SCORE_KEY,highScore.toString());}catch(e){console.error("LS save fail:",e);}} }
+    function createParticles(x, y, count, color, speedRange, lifeRange) { /* ... remains the same ... */ for(let i=0;i<count;i++){const angle=Math.random()*Math.PI*2;const speed=Math.random()*speedRange+50;const vx=Math.cos(angle)*speed;const vy=Math.sin(angle)*speed;const life=Math.random()*lifeRange+0.2;const size=Math.random()*3+1;particles.push(new Particle(x,y,vx,vy,life,color,size));}}
+    function triggerScreenShake(duration, intensity) { /* ... remains the same ... */ shakeDuration=Math.max(shakeDuration,duration);shakeIntensity=Math.max(shakeIntensity,intensity);console.log(`Screen shake: duration=${duration}, intensity=${intensity}`);}
 
-    // Added Step 16: Create Particles Function
-    function createParticles(x, y, count, color, speedRange, lifeRange) {
-        for (let i = 0; i < count; i++) {
-            const angle = Math.random() * Math.PI * 2; // Random direction
-            const speed = Math.random() * speedRange + 50; // Random speed within range + base
-            const vx = Math.cos(angle) * speed;
-            const vy = Math.sin(angle) * speed;
-            const life = Math.random() * lifeRange + 0.2; // Random life within range + base
-            const size = Math.random() * 3 + 1; // Random size
-            particles.push(new Particle(x, y, vx, vy, life, color, size));
-        }
-    }
-
-     // Added Step 16: Trigger Screen Shake Function
-    function triggerScreenShake(duration, intensity) {
-        shakeDuration = Math.max(shakeDuration, duration); // Don't shorten existing shake
-        shakeIntensity = Math.max(shakeIntensity, intensity); // Use strongest intensity
-        console.log(`Screen shake triggered: duration=${duration}, intensity=${intensity}`);
-    }
-
-    function resetGame() { // Updated Step 16 (reset particles & shake)
-        console.log("Resetting game state..."); loadHighScore(); score = 0; player.lives = initialPlayerLives;
-        player.x = canvasWidth / 2; player.y = canvasHeight - 50; playerProjectiles.length = 0; enemies.length = 0;
-        particles.length = 0; // Clear particles (Step 16)
-        shakeDuration = 0; shakeIntensity = 0; // Reset shake (Step 16)
-        currentWave = 1; startWave(1); console.log("Game reset complete.");
+    function resetGame() { // Does NOT change state, just resets variables for PLAYING
+        console.log("Resetting game variables for new game...");
+        score = 0;
+        player.lives = initialPlayerLives;
+        player.x = canvasWidth / 2; player.y = canvasHeight - 50;
+        playerProjectiles.length = 0; enemies.length = 0; particles.length = 0;
+        shakeDuration = 0; shakeIntensity = 0;
+        currentWave = 1; // Reset wave number
+        startWave(1); // Spawn enemies for wave 1
+        console.log("Game variables reset.");
+        // Note: currentState is set by the caller (listeners)
     }
 
     // --- Audio Functions ---
-    async function loadSound(url) { /* ... */ if(!audioContext) return null; try {const r=await fetch(url); if(!r.ok){throw new Error(`HTTP error! status: ${r.status} for ${url}`);} const aB=await r.arrayBuffer(); const buffer=await audioContext.decodeAudioData(aB); return buffer;} catch(e){console.error(`Error loading sound: ${url}`,e); return null;} }
-    async function loadAllSounds() { /* ... */ if(!audioContext) return; console.log("Loading sfx..."); const promises=[]; for(const key in sfxFiles){promises.push(loadSound(sfxFiles[key]).then(b=>{if(b){sfxBuffers[key]=b;console.log(`Loaded: ${key}`);}else{console.warn(`Failed: ${key}`);}}));} try{await Promise.all(promises);console.log("SFX loading done.");}catch(e){console.error("Error loading sounds:",e);} }
-    function playSound(bufferName) { /* ... */ if(!audioContext||!sfxBuffers[bufferName]){return;} if(audioContext.state==='suspended'){console.log("Audio suspended, resuming..."); audioContext.resume().then(()=>{console.log("Audio resumed!");audioContextResumed=true;playSoundInternal(bufferName);}).catch(e=>console.error("Resume failed:", e)); return;} playSoundInternal(bufferName); }
-    function playSoundInternal(bufferName) { /* ... */ if(!audioContext||!sfxBuffers[bufferName])return; try{const source=audioContext.createBufferSource(); source.buffer=sfxBuffers[bufferName]; source.connect(audioContext.destination); source.start(0);}catch(e){console.error(`Error playing ${bufferName}:`,e);} }
+    async function loadSound(url) { /* ... */ if(!audioContext)return null;try{const r=await fetch(url);if(!r.ok){throw new Error(`HTTP err ${r.status} ${url}`);}const aB=await r.arrayBuffer();const buffer=await audioContext.decodeAudioData(aB);return buffer;}catch(e){console.error(`Load sound fail: ${url}`,e);return null;} }
+    async function loadAllSounds() { /* ... */ if(!audioContext)return;console.log("Loading sfx...");const promises=[];for(const key in sfxFiles){promises.push(loadSound(sfxFiles[key]).then(b=>{if(b){sfxBuffers[key]=b;console.log(`Loaded: ${key}`);}else{console.warn(`Failed: ${key}`);}}));}try{await Promise.all(promises);console.log("SFX loading done.");}catch(e){console.error("Err loading sounds:",e);} }
+    function playSound(bufferName) { /* ... */ if(!audioContext||!sfxBuffers[bufferName]){return;}if(audioContext.state==='suspended'){console.log("Audio suspended...");audioContext.resume().then(()=>{console.log("Audio resumed!");audioContextResumed=true;playSoundInternal(bufferName);}).catch(e=>console.error("Resume fail:",e));return;}playSoundInternal(bufferName);}
+    function playSoundInternal(bufferName) { /* ... */ if(!audioContext||!sfxBuffers[bufferName])return;try{const source=audioContext.createBufferSource();source.buffer=sfxBuffers[bufferName];source.connect(audioContext.destination);source.start(0);}catch(e){console.error(`Play err ${bufferName}:`,e);}}
 
     // --- Main Game Loop ---
     function gameLoop(timestamp) {
-        const deltaTime = (timestamp - lastTime) / 1000; lastTime = timestamp;
+        const deltaTime = (timestamp - lastTime) / 1000;
+        lastTime = timestamp;
+
+        // --- State-Dependent Logic ---
 
         if (currentState === GameState.PLAYING) {
-            // 1. Update Logic (Order matters: update state before using it)
+            // --- UPDATE (PLAYING) ---
             player.update(deltaTime, arenaX, arenaY, arenaWidth, arenaHeight);
             enemies.forEach(enemy => enemy.update(deltaTime));
-            // Update Projectiles
-            for (let i = playerProjectiles.length - 1; i >= 0; i--) { const p=playerProjectiles[i];p.update(deltaTime);if(p.isOffScreen(canvasWidth,canvasHeight)){playerProjectiles.splice(i,1);} }
-            // Update Particles (Step 16)
-            for (let i = particles.length - 1; i >= 0; i--) {
-                particles[i].update(deltaTime);
-                if (particles[i].life <= 0) { particles.splice(i, 1); }
-            }
-            // Update Screen Shake (Step 16)
-            if (shakeDuration > 0) {
-                shakeDuration -= deltaTime;
-                if (shakeDuration <= 0) {
-                    shakeIntensity = 0; // Reset intensity when duration ends
-                    shakeDuration = 0; // Ensure it's exactly 0
-                }
-            }
+            for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(deltaTime); if (particles[i].life <= 0) { particles.splice(i, 1); } }
+            if (shakeDuration > 0) { shakeDuration -= deltaTime; if (shakeDuration <= 0) { shakeIntensity = 0; shakeDuration = 0; } }
+            for (let i = playerProjectiles.length - 1; i >= 0; i--) { const p = playerProjectiles[i]; p.update(deltaTime); if (p.isOffScreen(canvasWidth, canvasHeight)) { playerProjectiles.splice(i, 1); } }
 
-            // --- Collision Detection ---
-            // Projectile vs Enemy
-            for (let i = playerProjectiles.length - 1; i >= 0; i--) {
-                const projectile = playerProjectiles[i]; let projectileHit = false;
-                for (let j = enemies.length - 1; j >= 0; j--) {
-                    const enemy = enemies[j]; let collision = false;
-                    if(enemy.shape==='rect'){collision=circleRectCollision(projectile,enemy);}else if(enemy.shape==='circle'){collision=circleCircleCollision(projectile,enemy);}
-                    if (collision) {
-                        console.log(`Collision: Projectile hit Enemy (${enemy.type})`);
-                        createParticles(enemy.x, enemy.y, 15, enemy.color, 180, 0.6); // Create explosion particles (Step 16)
-                        enemies.splice(j, 1); score += scorePerEnemy; projectileHit = true; playSound('enemyHit'); break;
-                    }
-                }
-                if (projectileHit) { playerProjectiles.splice(i, 1); }
-            }
-            // Enemy vs Player
-            for (let i = enemies.length - 1; i >= 0; i--) {
-                const enemy = enemies[i]; let collision = false;
-                if(enemy.shape==='rect'){collision=rectRectCollision(player,enemy);}else if(enemy.shape==='circle'){collision=circleRectCollision(enemy,player);}
-                if (collision) {
-                    console.log(`Collision: Enemy (${enemy.type}) hit Player!`);
-                    createParticles(player.x, player.y, 10, player.color, 100, 0.4); // Player hit particles (Step 16)
-                    triggerScreenShake(0.25, 6); // Trigger screen shake (Step 16)
-                    enemies.splice(i, 1); player.lives--; console.log(`Player lives remaining: ${player.lives}`); playSound('playerHit');
-                    if (player.lives <= 0) { console.log("GAME OVER!"); checkAndSaveHighScore(); currentState = GameState.GAME_OVER; }
-                }
-            }
+            // --- COLLISIONS (PLAYING) ---
+            for (let i = playerProjectiles.length - 1; i >= 0; i--) { /* ... Projectile vs Enemy ... */
+                 const projectile = playerProjectiles[i]; let projectileHit = false; for (let j = enemies.length - 1; j >= 0; j--) {
+                 const enemy = enemies[j]; let collision = false; if(enemy.shape==='rect'){collision=circleRectCollision(projectile,enemy);}else if(enemy.shape==='circle'){collision=circleCircleCollision(projectile,enemy);}
+                 if(collision){createParticles(enemy.x,enemy.y,15,enemy.color,180,0.6);enemies.splice(j,1);score+=scorePerEnemy;projectileHit=true;playSound('enemyHit');break;}} if(projectileHit){playerProjectiles.splice(i,1);} }
+            for (let i = enemies.length - 1; i >= 0; i--) { /* ... Enemy vs Player ... */
+                 const enemy = enemies[i]; let collision = false; if(enemy.shape==='rect'){collision=rectRectCollision(player,enemy);}else if(enemy.shape==='circle'){collision=circleRectCollision(enemy,player);}
+                 if(collision){createParticles(player.x,player.y,10,player.color,100,0.4);triggerScreenShake(0.25,6);enemies.splice(i,1);player.lives--;console.log(`Lives: ${player.lives}`);playSound('playerHit');
+                 if(player.lives<=0){console.log("GAME OVER!");checkAndSaveHighScore();currentState=GameState.GAME_OVER;}} }
 
-            // Check for Wave Completion
+            // --- WAVE CHECK (PLAYING) ---
             if (enemies.length === 0 && currentState === GameState.PLAYING) { console.log(`Wave ${currentWave} cleared!`); startWave(currentWave + 1); }
 
-            // --- START DRAWING ---
-            // Apply Screen Shake (Step 16) - Before clearing/drawing anything else
-            if (shakeDuration > 0) {
-                const offsetX = (Math.random() - 0.5) * 2 * shakeIntensity;
-                const offsetY = (Math.random() - 0.5) * 2 * shakeIntensity;
-                ctx.save(); // Save the default context state
-                ctx.translate(offsetX, offsetY); // Apply shake translation
-            }
-
-            // 2. Clear Canvas
-            ctx.fillStyle = '#050010'; ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-
-            // 3. Draw Game Elements
-            // Draw Particles first (behind other elements) (Step 16)
-            particles.forEach(p => p.draw(ctx));
-
-            // Draw regular game elements
-            player.draw(ctx);
-            playerProjectiles.forEach(p => p.draw(ctx));
-            enemies.forEach(enemy => enemy.draw(ctx));
-            ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 2; // Arena Border
-            ctx.strokeRect(arenaX, arenaY, arenaWidth, arenaHeight);
-            drawUI(ctx); // Draw Score, HI Score, Wave, Lives
-
-            // Restore context if screen shake was applied (Step 16)
-            if (shakeDuration > 0) {
-                ctx.restore(); // Restore to the state before translation
-            }
-            // --- END DRAWING ---
-
+            // --- DRAW (PLAYING) ---
+            ctx.save(); // Save for potential shake
+            if (shakeDuration > 0) { const offsetX = (Math.random() - 0.5) * 2 * shakeIntensity; const offsetY = (Math.random() - 0.5) * 2 * shakeIntensity; ctx.translate(offsetX, offsetY); }
+            ctx.fillStyle = '#050010'; ctx.fillRect(0, 0, canvasWidth, canvasHeight); // Clear
+            particles.forEach(p => p.draw(ctx)); // Draw particles first
+            player.draw(ctx); playerProjectiles.forEach(p => p.draw(ctx)); enemies.forEach(enemy => enemy.draw(ctx));
+            ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 2; ctx.strokeRect(arenaX, arenaY, arenaWidth, arenaHeight); // Arena
+            drawUI(ctx); // Score, Wave, Lives etc.
+            if (shakeDuration > 0) { ctx.restore(); } // Restore from shake
 
         } else if (currentState === GameState.GAME_OVER) {
-            // Draw Game Over Screen (No shake applied here)
-             ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(0,0,canvasWidth,canvasHeight);ctx.font=gameOverFontLarge;ctx.fillStyle=gameOverColor;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('GAME OVER',canvasWidth/2,canvasHeight/2-60);ctx.font=gameOverFontMedium;ctx.fillStyle=uiColor;ctx.fillText(`Final Score: ${score}`,canvasWidth/2,canvasHeight/2+0);ctx.fillText(`High Score: ${highScore}`,canvasWidth/2,canvasHeight/2+35);ctx.fillText('Press ENTER to Restart',canvasWidth/2,canvasHeight/2+80);
+            // --- DRAW (GAME OVER) ---
+            ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(0,0,canvasWidth,canvasHeight);ctx.font=gameOverFontLarge;ctx.fillStyle=gameOverColor;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('GAME OVER',canvasWidth/2,canvasHeight/2-60);ctx.font=gameOverFontMedium;ctx.fillStyle=uiColor;ctx.fillText(`Final Score: ${score}`,canvasWidth/2,canvasHeight/2+0);ctx.fillText(`High Score: ${highScore}`,canvasWidth/2,canvasHeight/2+35);ctx.fillText('Press ENTER to Restart',canvasWidth/2,canvasHeight/2+80);
+
+        } else if (currentState === GameState.MENU) { // Added Step 17
+            // --- DRAW (MENU) ---
+            ctx.fillStyle = '#050010'; // Same background
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            // Draw Title
+            ctx.font = menuTitleFont;
+            ctx.fillStyle = '#00ffff'; // Cyan title
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('VECTOR VANGUARD', canvasWidth / 2, canvasHeight * 0.25);
+
+            // Draw Instructions
+            ctx.font = menuTextFont;
+            ctx.fillStyle = uiColor; // White text
+            ctx.fillText('Use WASD or Arrow Keys to Move', canvasWidth / 2, canvasHeight * 0.45);
+            ctx.fillText('Use Mouse to Aim and Left Click to Shoot', canvasWidth / 2, canvasHeight * 0.50);
+
+            // Draw High Score
+            ctx.fillText(`High Score: ${highScore}`, canvasWidth / 2, canvasHeight * 0.65);
+
+            // Draw Start Prompt
+            ctx.font = menuPromptFont;
+            ctx.fillStyle = '#33ff33'; // Green prompt
+            ctx.fillText('Click or Press ENTER to Start', canvasWidth / 2, canvasHeight * 0.80);
         }
 
-        // 4. Request Next Frame
+        // --- Request Next Frame --- (Always run)
         requestAnimationFrame(gameLoop);
     }
 
     // --- Event Listeners Setup ---
     console.log("Setting up event listeners...");
-    window.addEventListener('keydown', (event) => { /* ... keydown ... */ const key=event.key.toLowerCase(); keysPressed[key]=true; if(currentState===GameState.GAME_OVER&&key==='enter'){console.log("Restarting game...");resetGame();currentState=GameState.PLAYING;} });
-    window.addEventListener('keyup', (event) => { /* ... keyup ... */ keysPressed[event.key.toLowerCase()]=false; });
-    canvas.addEventListener('mousemove', (event) => { /* ... mousemove ... */ mousePos=getMousePos(canvas,event); });
-    canvas.addEventListener('mousedown', (event) => { /* ... mousedown ... */
-        if(audioContext&&audioContext.state==='suspended'&&!audioContextResumed){audioContext.resume().then(()=>{console.log("Audio resumed!");audioContextResumed=true;const b=document.getElementById('bgm');if(b&&b.paused){b.play().catch(e=>console.log("BGM fail post-resume:",e));}}).catch(e=>console.error("Resume fail:",e));}
-        if(currentState===GameState.PLAYING&&event.button===0){const dx=mousePos.x-player.x,dy=mousePos.y-player.y,angle=Math.atan2(dy,dx);const vX=Math.cos(angle)*projectileSpeed,vY=Math.sin(angle)*projectileSpeed;playerProjectiles.push(new Projectile(player.x,player.y,vX,vY));playSound('shoot');}
+    window.addEventListener('keydown', (event) => {
+        const key = event.key.toLowerCase();
+        keysPressed[key] = true;
+        // State-dependent actions
+        if (currentState === GameState.GAME_OVER && key === 'enter') {
+            console.log("Restarting game from Game Over...");
+            resetGame(); // Resets vars and starts wave 1
+            currentState = GameState.PLAYING; // Set state AFTER reset
+        } else if (currentState === GameState.MENU && key === 'enter') { // Added Step 17
+            console.log("Starting game from Menu (Enter)...");
+            resetGame(); // Resets vars and starts wave 1
+            currentState = GameState.PLAYING; // Set state AFTER reset
+        }
+        // Optional: event.preventDefault();
+    });
+    window.addEventListener('keyup', (event) => { keysPressed[event.key.toLowerCase()] = false; });
+    canvas.addEventListener('mousemove', (event) => { mousePos = getMousePos(canvas, event); });
+    canvas.addEventListener('mousedown', (event) => {
+        // Resume Audio Context on first interaction (works in any state)
+        if (audioContext && audioContext.state === 'suspended' && !audioContextResumed) { /* ... resume audio ... */ audioContext.resume().then(()=>{console.log("Audio resumed!");audioContextResumed=true;const b=document.getElementById('bgm');if(b&&b.paused){b.play().catch(e=>console.log("BGM fail post-resume:",e));}}).catch(e=>console.error("Resume fail:",e));}
+
+        // State-dependent actions
+        if (currentState === GameState.MENU) { // Added Step 17
+            console.log("Starting game from Menu (Click)...");
+            resetGame(); // Resets vars and starts wave 1
+            currentState = GameState.PLAYING; // Set state AFTER reset
+        } else if (currentState === GameState.PLAYING && event.button === 0) { // Shoot only when playing
+            const dx = mousePos.x - player.x, dy = mousePos.y - player.y, angle = Math.atan2(dy, dx);
+            const vX = Math.cos(angle) * projectileSpeed, vY = Math.sin(angle) * projectileSpeed;
+            playerProjectiles.push(new Projectile(player.x, player.y, vX, vY)); playSound('shoot');
+        }
     });
 
     // --- Start the Game ---
     async function startGame() {
-        loadHighScore();
+        loadHighScore(); // Load high score once
         if (audioContext) { await loadAllSounds(); }
         const bgm = document.getElementById('bgm');
-        if (bgm) { bgm.volume = 0.3; bgm.play().then(()=>console.log("BGM playing.")).catch(e=>console.warn("BGM failed.", e)); }
-        else { console.warn("BGM element not found."); }
-        console.log("Starting game logic...");
-        resetGame();
+        if (bgm) { bgm.volume = 0.3; /* Don't autoplay here */ } else { console.warn("BGM element not found."); }
+
+        console.log("Game ready. Starting loop in MENU state.");
+        // Don't reset game here, wait for player input
         lastTime = performance.now();
-        requestAnimationFrame(gameLoop);
+        currentState = GameState.MENU; // Explicitly ensure menu state
+        requestAnimationFrame(gameLoop); // Start the main loop
     }
 
-    startGame();
+    startGame(); // Call the async start function
 
 }); // End of window.onload listener
 
