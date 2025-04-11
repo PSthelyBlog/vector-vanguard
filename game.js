@@ -29,6 +29,21 @@ window.addEventListener('load', () => {
     const arenaHeight = canvasHeight - 2 * arenaPadding;
     const projectileSpeed = 400;
     const enemySpeed = 100;
+    const scorePerEnemy = 100;
+    const initialPlayerLives = 2; // Configurable initial lives
+
+    // UI Config
+    const uiFont = "20px 'Courier New', Courier, monospace";
+    const uiColor = "#ffffff";
+    const scoreX = 25;
+    const scoreY = 40;
+    const livesX = 670;
+    const livesY = 40;
+    const lifeIconSpacing = 20;
+    const lifeIconColor = "#33ff33";
+    const gameOverFontLarge = "48px 'Courier New', Courier, monospace";
+    const gameOverFontMedium = "24px 'Courier New', Courier, monospace";
+    const gameOverColor = "#ff3333"; // Red
 
     console.log(`Canvas dimensions: ${canvasWidth}x${canvasHeight}`);
     console.log(`Arena dimensions: ${arenaWidth}x${arenaHeight} at (${arenaX},${arenaY})`);
@@ -45,7 +60,7 @@ window.addEventListener('load', () => {
             this.strokeColor = '#33ff33';
             this.lineWidth = 1.5;
             this.speed = 200;
-            this.lives = 3;
+            this.lives = initialPlayerLives; // Use config
         }
 
         draw(ctx) {
@@ -98,19 +113,16 @@ window.addEventListener('load', () => {
             this.radius = 3;
             this.color = '#33ff33';
         }
-
         update(deltaTime) {
             this.x += this.velocityX * deltaTime;
             this.y += this.velocityY * deltaTime;
         }
-
         draw(ctx) {
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
             ctx.fillStyle = this.color;
             ctx.fill();
         }
-
         isOffScreen(canvasWidth, canvasHeight) {
             return this.x < -this.radius || this.x > canvasWidth + this.radius ||
                    this.y < -this.radius || this.y > canvasHeight + this.radius;
@@ -128,7 +140,6 @@ window.addEventListener('load', () => {
             this.speed = enemySpeed;
             this.health = 1;
         }
-
         update(deltaTime) {
             this.y += this.speed * deltaTime;
             if (this.y - this.height / 2 > canvasHeight) {
@@ -136,7 +147,6 @@ window.addEventListener('load', () => {
                 this.x = Math.random() * arenaWidth + arenaX;
             }
         }
-
         draw(ctx) {
             if (this.type === 'square') {
                 const halfSize = this.width / 2;
@@ -147,21 +157,25 @@ window.addEventListener('load', () => {
         }
     }
 
+    // --- Game State Definition (Step 11) ---
+    const GameState = {
+        // MENU: 'menu', // To be added later
+        PLAYING: 'playing',
+        GAME_OVER: 'gameOver'
+    };
+
     // --- Game State Initialization ---
     let lastTime = 0;
     let mousePos = { x: 0, y: 0 };
     const keysPressed = {};
+    let score = 0;
+    let currentState = GameState.PLAYING; // Start in PLAYING state (Step 11)
+
     const player = new Player(canvasWidth / 2, canvasHeight - 50);
     const playerProjectiles = [];
     const enemies = [];
-    let score = 0; // Added in Step 10
 
     console.log("Player instance created:", player);
-
-    // Spawn initial enemies
-    enemies.push(new Enemy(150, 100));
-    enemies.push(new Enemy(650, 150));
-    console.log(`Spawned ${enemies.length} initial enemies.`);
 
     // --- Helper Functions ---
     function getMousePos(canvas, event) {
@@ -172,8 +186,8 @@ window.addEventListener('load', () => {
         };
     }
 
-    // Added in Step 9: Collision Detection Utilities (CORRECTED)
     function rectRectCollision(rect1, rect2) {
+        // AABB Collision Check
         const rect1Left = rect1.x - rect1.width / 2;
         const rect1Right = rect1.x + rect1.width / 2;
         const rect1Top = rect1.y - rect1.height / 2;
@@ -186,6 +200,7 @@ window.addEventListener('load', () => {
     }
 
     function circleRectCollision(circle, rect) {
+        // Circle-Rectangle Collision Check
         const rectHalfWidth = rect.width / 2;
         const rectHalfHeight = rect.height / 2;
         const rectLeft = rect.x - rectHalfWidth;
@@ -200,45 +215,60 @@ window.addEventListener('load', () => {
         return distanceSquared < (circle.radius * circle.radius);
     }
 
-    // Added in Step 10: UI Drawing Function
     function drawUI(ctx) {
         // Draw Score
-        ctx.font = "20px 'Courier New', Courier, monospace";
-        ctx.fillStyle = "#ffffff";
+        ctx.font = uiFont;
+        ctx.fillStyle = uiColor;
         ctx.textAlign = 'left';
-        ctx.textBaseline = 'top'; // Align text nicely with coordinates
-        ctx.fillText(`SCORE: ${score}`, 25, 40);
+        ctx.textBaseline = 'top';
+        ctx.fillText(`SCORE: ${score}`, scoreX, scoreY);
 
         // Draw Lives Text
-        ctx.textAlign = 'right'; // Align lives text to the right edge coordinate
-        ctx.fillText('LIVES:', 670, 40);
+        ctx.textAlign = 'right';
+        ctx.fillText('LIVES:', livesX, livesY);
 
-        // Draw Life Icons (Triangles)
-        ctx.fillStyle = '#33ff33';
-        ctx.strokeStyle = '#33ff33';
+        // Draw Life Icons
+        ctx.fillStyle = lifeIconColor;
+        ctx.strokeStyle = lifeIconColor;
         ctx.lineWidth = 1;
         for (let i = 0; i < player.lives; i++) {
-            // Calculate position for each life icon triangle
-            const iconXOffset = 670 + 10 + (i * 20); // Start slightly right of text
-            // Using fixed points relative to iconXOffset (adjust if needed)
+            const iconXOffset = livesX + 10 + (i * lifeIconSpacing);
             const topX = iconXOffset;
-            const topY = 40 - 5; // Align vertically with text baseline approx
+            const topY = scoreY - 5; // Align vertically approx
             const leftX = iconXOffset - 5;
             const leftY = topY + 10;
             const rightX = iconXOffset + 5;
             const rightY = topY + 10;
-
             ctx.beginPath();
             ctx.moveTo(topX, topY);
             ctx.lineTo(leftX, leftY);
             ctx.lineTo(rightX, rightY);
             ctx.closePath();
             ctx.fill();
-            // ctx.stroke(); // Optional stroke for icons
         }
-        // Reset alignment for other potential drawing
-        ctx.textAlign = 'left';
+        ctx.textAlign = 'left'; // Reset alignment
     }
+
+    // Added in Step 11: Reset Game Function
+    function resetGame() {
+        console.log("Resetting game state...");
+        score = 0;
+        player.lives = initialPlayerLives;
+        player.x = canvasWidth / 2;
+        player.y = canvasHeight - 50;
+        playerProjectiles.length = 0;
+        enemies.length = 0;
+        // Respawn initial enemies
+        spawnInitialEnemies(); // Use a helper for clarity
+        console.log("Game reset complete.");
+    }
+
+    // Helper to spawn initial set of enemies
+    function spawnInitialEnemies() {
+        enemies.push(new Enemy(150, 100));
+        enemies.push(new Enemy(650, 150));
+    }
+
 
     // --- Main Game Loop ---
     function gameLoop(timestamp) {
@@ -246,80 +276,128 @@ window.addEventListener('load', () => {
         const deltaTime = (timestamp - lastTime) / 1000;
         lastTime = timestamp;
 
-        // 1. Clear Canvas
-        ctx.fillStyle = '#050010';
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        // --- State-Dependent Logic (Step 11) ---
+        if (currentState === GameState.PLAYING) {
 
-        // 2. Update Logic
-        player.update(deltaTime, arenaX, arenaY, arenaWidth, arenaHeight);
-        enemies.forEach(enemy => enemy.update(deltaTime));
+            // 1. Clear Canvas (Inside Playing State)
+            ctx.fillStyle = '#050010';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-        // Update Projectiles & Remove Off-screen ones
-        for (let i = playerProjectiles.length - 1; i >= 0; i--) {
-            const p = playerProjectiles[i];
-            p.update(deltaTime);
-            if (p.isOffScreen(canvasWidth, canvasHeight)) {
-                playerProjectiles.splice(i, 1);
-            }
-        }
+            // 2. Update Logic (Inside Playing State)
+            player.update(deltaTime, arenaX, arenaY, arenaWidth, arenaHeight);
+            enemies.forEach(enemy => enemy.update(deltaTime));
 
-        // --- Collision Detection ---
-        // Projectile vs Enemy
-        for (let i = playerProjectiles.length - 1; i >= 0; i--) {
-            const projectile = playerProjectiles[i];
-            let projectileHit = false;
-            for (let j = enemies.length - 1; j >= 0; j--) {
-                const enemy = enemies[j];
-                if (circleRectCollision(projectile, enemy)) {
-                    console.log("Collision: Projectile hit Enemy");
-                    enemies.splice(j, 1); // Remove enemy
-                    score += 100; // Added in Step 10
-                    projectileHit = true;
-                    // Add score / effects later
-                    break; // Projectile hits one enemy
+            // Update Projectiles & Remove Off-screen ones
+            for (let i = playerProjectiles.length - 1; i >= 0; i--) {
+                const p = playerProjectiles[i];
+                p.update(deltaTime);
+                if (p.isOffScreen(canvasWidth, canvasHeight)) {
+                    playerProjectiles.splice(i, 1);
                 }
             }
-            if (projectileHit) {
-                playerProjectiles.splice(i, 1); // Remove projectile
+
+            // --- Collision Detection (Inside Playing State) ---
+            // Projectile vs Enemy
+            for (let i = playerProjectiles.length - 1; i >= 0; i--) {
+                const projectile = playerProjectiles[i];
+                let projectileHit = false;
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const enemy = enemies[j];
+                    if (circleRectCollision(projectile, enemy)) {
+                        console.log("Collision: Projectile hit Enemy");
+                        enemies.splice(j, 1); // Remove enemy
+                        score += scorePerEnemy; // Increment score (Step 10)
+                        projectileHit = true;
+                        // Add effects later
+                        break;
+                    }
+                }
+                if (projectileHit) {
+                    playerProjectiles.splice(i, 1); // Remove projectile
+                }
             }
+
+            // Enemy vs Player
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                if (rectRectCollision(player, enemy)) {
+                    console.log("Collision: Enemy hit Player!");
+                    enemies.splice(i, 1); // Remove enemy
+                    player.lives--;
+                    console.log(`Player lives remaining: ${player.lives}`);
+                    // Check for Game Over (Step 11)
+                    if (player.lives <= 0) {
+                        console.log("GAME OVER!");
+                        currentState = GameState.GAME_OVER;
+                        // Optional: Break or return here if needed to prevent further updates this frame
+                    }
+                    // Add player hit effects later
+                }
+            }
+
+            // 3. Draw Logic (Inside Playing State)
+            player.draw(ctx);
+            playerProjectiles.forEach(p => p.draw(ctx));
+            enemies.forEach(enemy => enemy.draw(ctx));
+
+            // Draw Arena Boundaries
+            ctx.strokeStyle = '#00ffff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(arenaX, arenaY, arenaWidth, arenaHeight);
+
+            // Draw UI
+            drawUI(ctx);
+
+        } else if (currentState === GameState.GAME_OVER) {
+            // --- Draw Game Over Screen (Step 11) ---
+            // Optional: Only draw static elements once, or draw every frame
+            // Draw semi-transparent overlay first if needed on subsequent frames too
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            ctx.font = gameOverFontLarge;
+            ctx.fillStyle = gameOverColor;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('GAME OVER', canvasWidth / 2, canvasHeight / 2 - 40);
+
+            ctx.font = gameOverFontMedium;
+            ctx.fillStyle = uiColor; // White for score
+            ctx.fillText(`Final Score: ${score}`, canvasWidth / 2, canvasHeight / 2 + 10);
+
+            ctx.font = gameOverFontMedium;
+            ctx.fillStyle = uiColor; // White for prompt
+            ctx.fillText('Press ENTER to Restart', canvasWidth / 2, canvasHeight / 2 + 60);
         }
 
-        // Enemy vs Player
-        for (let i = enemies.length - 1; i >= 0; i--) {
-            const enemy = enemies[i];
-            if (rectRectCollision(player, enemy)) { // Using Rect-Rect for player
-                console.log("Collision: Enemy hit Player!");
-                enemies.splice(i, 1); // Remove enemy
-                player.lives--;
-                console.log(`Player lives remaining: ${player.lives}`);
-                // Add player hit effects / game over check later
-            }
-        }
-
-        // 3. Draw Logic
-        player.draw(ctx);
-        playerProjectiles.forEach(p => p.draw(ctx));
-        enemies.forEach(enemy => enemy.draw(ctx));
-
-        // Draw Arena Boundaries
-        ctx.strokeStyle = '#00ffff';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(arenaX, arenaY, arenaWidth, arenaHeight);
-        // Added in Step 10: Draw UI
-        drawUI(ctx);
-
-        // 4. Request Next Frame
+        // 4. Request Next Frame (Always run to handle state transitions)
         requestAnimationFrame(gameLoop);
     }
 
     // --- Event Listeners Setup ---
     console.log("Setting up event listeners...");
 
-    window.addEventListener('keydown', (event) => { keysPressed[event.key.toLowerCase()] = true; });
-    window.addEventListener('keyup', (event) => { keysPressed[event.key.toLowerCase()] = false; });
-    canvas.addEventListener('mousemove', (event) => { mousePos = getMousePos(canvas, event); });
+    window.addEventListener('keydown', (event) => {
+        const key = event.key.toLowerCase();
+        keysPressed[key] = true;
+
+        // Restart Logic (Step 11)
+        if (currentState === GameState.GAME_OVER && key === 'enter') {
+            console.log("Restarting game...");
+            resetGame(); // Call reset function
+            currentState = GameState.PLAYING; // Go back to playing state
+        }
+        // Optional: event.preventDefault();
+    });
+    window.addEventListener('keyup', (event) => {
+        keysPressed[event.key.toLowerCase()] = false;
+    });
+    canvas.addEventListener('mousemove', (event) => {
+        mousePos = getMousePos(canvas, event);
+    });
     canvas.addEventListener('mousedown', (event) => {
-        if (event.button === 0) { // Left click
+        // Only allow shooting if playing (Step 11)
+        if (currentState === GameState.PLAYING && event.button === 0) { // Left click
             const dx = mousePos.x - player.x;
             const dy = mousePos.y - player.y;
             const angle = Math.atan2(dy, dx);
@@ -330,8 +408,10 @@ window.addEventListener('load', () => {
     });
 
     // --- Start the Game ---
+    spawnInitialEnemies(); // Spawn enemies before game starts
     console.log("Starting game loop...");
     lastTime = performance.now();
+    currentState = GameState.PLAYING; // Explicitly set initial state
     requestAnimationFrame(gameLoop);
 
 }); // End of window.onload listener
